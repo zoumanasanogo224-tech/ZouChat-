@@ -468,3 +468,14 @@ for insert to authenticated with check (
     else false end
   and not public.is_zouchat_banned()
 );
+
+-- Supprime les anciennes policies permissives afin que le bannissement s'applique réellement.
+drop policy if exists "Join own membership" on public.conversation_members;
+drop policy if exists "Read own memberships" on public.conversation_members;
+drop policy if exists "Create conversations" on public.conversations;
+drop policy if exists "Members read conversations" on public.conversations;
+drop policy if exists "Members read messages" on public.messages;
+drop policy if exists "Members send messages" on public.messages;
+drop policy if exists "Create own profile" on public.profiles;
+drop policy if exists "Read profiles when connected" on public.profiles;
+drop policy if exists "Update own profile" on public.profiles;
