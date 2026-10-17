@@ -141,7 +141,6 @@ with check (
 
 -- Bucket privé. Les URL signées doivent être générées pour le lecteur autorisé.
 -- Cette règle ne donne accès qu'aux objets dont le chemin commence par son propre ID.
-drop policy if exists "ZouChat media owners can manage" on storage.objects;
 drop policy if exists "ZouChat media owners can read" on storage.objects;
 create policy "ZouChat media owners can read"
 on storage.objects for select to authenticated
