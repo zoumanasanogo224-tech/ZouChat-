@@ -1,0 +1,41 @@
+name: ZouChat Guardian Checks
+
+on:
+  push:
+    branches: [main, fix/zouchat-v10-stability]
+  pull_request:
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-and-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Extract and check inline JavaScript
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script(?:\s[^>]*)?>(.*?)</script>", html, flags=re.I | re.S)
+          inline = [s for s in scripts if s.strip()]
+          if not inline:
+              raise SystemExit("No inline JavaScript found")
+          Path("/tmp/zouchat-inline.js").write_text("\n".join(inline), encoding="utf-8")
+          print(f"Extracted {len(inline)} inline script(s)")
+          PY
+          node --check /tmp/zouchat-inline.js
+      - name: Check that private keys are not committed
+        run: |
+          if grep -RInE 'sk-[A-Za-z0-9_-]{20,}|service_role.{0,20}[A-Za-z0-9_-]{30,}' --exclude-dir=.git --exclude='*.md' .; then
+            echo "Possible private key found. Remove it and rotate the key."
+            exit 1
+          fi
