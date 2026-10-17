@@ -172,3 +172,53 @@ with check (
     else false
   end
 );
+
+
+-- ZouChat Evolution: bucket privé pour photos, vidéos et messages vocaux.
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('zouchat-media', 'zouchat-media', false, 52428800)
+on conflict (id) do update set public = false, file_size_limit = 52428800;
+
+drop policy if exists "ZouChat media members can upload" on storage.objects;
+create policy "ZouChat media members can upload"
+on storage.objects for insert to authenticated
+with check (
+  bucket_id = 'zouchat-media'
+  and (storage.foldername(name))[1] = auth.uid()::text
+  and case
+    when (storage.foldername(name))[2] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    then public.is_conversation_member(((storage.foldername(name))[2])::uuid, auth.uid())
+    else false
+  end
+);
+
+drop policy if exists "ZouChat media owners can read" on storage.objects;
+create policy "ZouChat media owners can read"
+on storage.objects for select to authenticated
+using (
+  bucket_id = 'zouchat-media'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Autorisation de signalisation des appels uniquement entre membres d'une conversation.
+drop policy if exists "ZouChat call members can receive signals" on realtime.messages;
+create policy "ZouChat call members can receive signals"
+on realtime.messages for select to authenticated
+using (
+  case
+    when realtime.topic() ~* '^call:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    then public.is_conversation_member(split_part(realtime.topic(), ':', 2)::uuid, auth.uid())
+    else false
+  end
+);
+
+drop policy if exists "ZouChat call members can send signals" on realtime.messages;
+create policy "ZouChat call members can send signals"
+on realtime.messages for insert to authenticated
+with check (
+  case
+    when realtime.topic() ~* '^call:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    then public.is_conversation_member(split_part(realtime.topic(), ':', 2)::uuid, auth.uid())
+    else false
+  end
+);
