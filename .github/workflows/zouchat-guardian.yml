@@ -25,11 +25,11 @@ jobs:
           from pathlib import Path
           import re
           html = Path("index.html").read_text(encoding="utf-8")
-          scripts = re.findall(r"<script(?:\\s[^>]*)?>(.*?)</script>", html, flags=re.I | re.S)
+          scripts = re.findall(r"<script(?:\s[^>]*)?>(.*?)</script>", html, flags=re.I | re.S)
           inline = [s for s in scripts if s.strip()]
           if not inline:
               raise SystemExit("No inline JavaScript found")
-          Path("/tmp/zouchat-inline.js").write_text("\\n".join(inline), encoding="utf-8")
+          Path("/tmp/zouchat-inline.js").write_text("\n".join(inline), encoding="utf-8")
           print(f"Extracted {len(inline)} inline script(s)")
           PY
           node --check /tmp/zouchat-inline.js
