@@ -14,7 +14,7 @@
 Les clés ne sont pas incluses dans le dépôt et ne doivent jamais être publiées dans `index.html`, le SQL ou cette conversation.
 
 1. Dans le tableau de bord Supabase du projet `rollxrixddvgpkgidlja`, ouvre **Edge Functions → Secrets**.
-2. Ajoute `OPENAI_API_KEY) avec une clé de l'API OpenAI. Les appels API peuvent générer des frais distincts de ChatGPT.
+2. Ajoute `OPENAI_API_KEY` avec une clé de l’API OpenAI. Les appels API peuvent générer des frais distincts de ChatGPT.
 3. Crée un jeton GitHub fine-grained limité au dépôt `zoumanasanogo224-tech/ZouChat-`, avec **Contents: Read and write** et **Pull requests: Read and write**.
 4. Ajoute ce jeton comme secret Supabase nommé `GITHUB_TOKEN`.
 5. Dans ZouChat, déconnecte-toi/reconnecte-toi si nécessaire, puis ouvre **Gardien IA**. Clique sur **Vérifier** pour confirmer la configuration.
