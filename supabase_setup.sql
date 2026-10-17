@@ -120,3 +120,55 @@ do $$ begin
   alter publication supabase_realtime add table public.messages;
 exception when duplicate_object then null;
 end $$;
+
+
+-- ZouChat Evolution: médias privés (photos, vidéos et messages vocaux).
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('zouchat-media', 'zouchat-media', false, 52428800)
+on conflict (id) do update set public = false, file_size_limit = 52428800;
+
+drop policy if exists "ZouChat media members can upload" on storage.objects;
+create policy "ZouChat media members can upload"
+on storage.objects for insert to authenticated
+with check (
+  bucket_id = 'zouchat-media'
+  and (storage.foldername(name))[1] = auth.uid()::text
+  and case
+    when (storage.foldername(name))[2] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    then public.is_conversation_member(((storage.foldername(name))[2])::uuid, auth.uid())
+    else false
+  end
+);
+
+-- Le bucket reste privé. Le client délivre des URL signées temporaires aux destinataires.
+drop policy if exists "ZouChat media owners can manage" on storage.objects;
+create policy "ZouChat media owners can manage"
+on storage.objects for select to authenticated
+using (
+  bucket_id = 'zouchat-media'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Les appels utilisent des canaux Broadcast privés : seuls les membres de la conversation
+-- peuvent recevoir ou publier les signaux de négociation WebRTC.
+drop policy if exists "ZouChat call members can receive signals" on realtime.messages;
+create policy "ZouChat call members can receive signals"
+on realtime.messages for select to authenticated
+using (
+  case
+    when realtime.topic() ~* '^call:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    then public.is_conversation_member(split_part(realtime.topic(), ':', 2)::uuid, auth.uid())
+    else false
+  end
+);
+
+drop policy if exists "ZouChat call members can send signals" on realtime.messages;
+create policy "ZouChat call members can send signals"
+on realtime.messages for insert to authenticated
+with check (
+  case
+    when realtime.topic() ~* '^call:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    then public.is_conversation_member(split_part(realtime.topic(), ':', 2)::uuid, auth.uid())
+    else false
+  end
+);
