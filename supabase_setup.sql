@@ -139,8 +139,8 @@ with check (
   end
 );
 
--- Bucket privé : seuls les membres de la conversation peuvent lire les médias.
--- Le chemin est <uploader_id>/<conversation_id>/<nom_du_fichier>.
+-- Seuls les membres de la conversation peuvent lire les médias privés.
+-- Le chemin est uploader_id/conversation_id/nom_du_fichier.
 drop policy if exists "ZouChat media owners can read" on storage.objects;
 drop policy if exists "ZouChat media conversation members can read" on storage.objects;
 create policy "ZouChat media conversation members can read"
@@ -148,44 +148,13 @@ on storage.objects for select to authenticated
 using (
   bucket_id = 'zouchat-media'
   and case
-    when (storage.foldername(name))[2] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
-
--- Contrôle des fonctions exposées : pas d'appel anonyme à des fonctions privilégiées.
-revoke execute on function public.create_dm(uuid) from public, anon;
-grant execute on function public.create_dm(uuid) to authenticated;
-revoke execute on function public.is_conversation_member(uuid, uuid) from public, anon;
-grant execute on function public.is_conversation_member(uuid, uuid) to authenticated;
-revoke execute on function public.handle_new_zouchat_user() from public, anon, authenticated;
-
--- Seuls les membres de la conversation peuvent utiliser la signalisation d'appel.
-drop policy if exists "ZouChat call members can receive signals" on realtime.messages;
-create policy "ZouChat call members can receive signals"
-on realtime.messages for select to authenticated
-using (
-  case
-    when realtime.topic() ~* '^call:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-    then public.is_conversation_member(split_part(realtime.topic(), ':', 2)::uuid, (select auth.uid()))
-    else false
-  end
-);
-
-drop policy if exists "ZouChat call members can send signals" on realtime.messages;
-create policy "ZouChat call members can send signals"
-on realtime.messages for insert to authenticated
-with check (
-  case
-    when realtime.topic() ~* '^call:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-    then public.is_conversation_member(split_part(realtime.topic(), ':', 2)::uuid, (select auth.uid()))
-    else false
-  end
-);
-
+    when (storage.foldername(name))[2] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
     then public.is_conversation_member(((storage.foldername(name))[2])::uuid, (select auth.uid()))
     else false
   end
 );
 
--- Contrôle des fonctions exposées : pas d'appel anonyme à des fonctions privilégiées.
+-- Restreint les fonctions privilegiees exposees par l'API.
 revoke execute on function public.create_dm(uuid) from public, anon;
 grant execute on function public.create_dm(uuid) to authenticated;
 revoke execute on function public.is_conversation_member(uuid, uuid) from public, anon;
