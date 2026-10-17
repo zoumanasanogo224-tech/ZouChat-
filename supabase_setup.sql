@@ -523,3 +523,7 @@ create policy "Admins can review AI proposals" on public.zouchat_ai_proposals
 for update to authenticated using ((select public.is_zouchat_admin())) with check ((select public.is_zouchat_admin()));
 grant select, insert on public.zouchat_guardian_events to authenticated;
 grant select, insert, update on public.zouchat_ai_proposals to authenticated;
+
+alter table public.zouchat_ai_proposals
+  add column if not exists pull_request_url text,
+  add column if not exists branch_name text;
