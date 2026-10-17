@@ -1,0 +1,7 @@
+ZouChat V10 — configuration Supabase préremplie
+
+Project URL : https://rollxrixddvgpkgidlja.supabase.co
+Publishable key : sb_publishable_ypHupAD-riyX1vW2reVQ6Q_SdfKZE-z
+
+Cette clé est une clé publique client. Ne jamais y ajouter une clé secret ou service_role.
+La base de données n’est pas encore configurée sur le serveur tant que supabase_setup.sql n’a pas été exécuté dans SQL Editor du projet Supabase.
