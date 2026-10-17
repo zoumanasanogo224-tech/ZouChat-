@@ -479,3 +479,47 @@ drop policy if exists "Members send messages" on public.messages;
 drop policy if exists "Create own profile" on public.profiles;
 drop policy if exists "Read profiles when connected" on public.profiles;
 drop policy if exists "Update own profile" on public.profiles;
+
+ 
+-- ZouChat AI Guardian: technical error monitoring and human-reviewed AI proposals.
+create table if not exists public.zouchat_guardian_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  event_type text not null check (event_type in ('client_error','unhandled_rejection','manual_check')),
+  severity text not null default 'warning' check (severity in ('info','warning','error','critical')),
+  summary text not null check (char_length(summary) between 1 and 1000),
+  created_at timestamptz not null default now()
+);
+alter table public.zouchat_guardian_events enable row level security;
+drop policy if exists "Users can submit own guardian events" on public.zouchat_guardian_events;
+create policy "Users can submit own guardian events" on public.zouchat_guardian_events
+for insert to authenticated with check ((select auth.uid()) = user_id);
+drop policy if exists "Admins can read guardian events" on public.zouchat_guardian_events;
+create policy "Admins can read guardian events" on public.zouchat_guardian_events
+for select to authenticated using ((select public.is_zouchat_admin()));
+
+create table if not exists public.zouchat_ai_proposals (
+  id uuid primary key default gen_random_uuid(),
+  created_by uuid not null references auth.users(id),
+  title text not null check (char_length(title) between 1 and 200),
+  summary text not null check (char_length(summary) between 1 and 4000),
+  patch text,
+  test_plan jsonb not null default '[]'::jsonb,
+  status text not null default 'pending_approval'
+    check (status in ('pending_approval','approved','rejected','implemented')),
+  created_at timestamptz not null default now(),
+  reviewed_at timestamptz,
+  reviewed_by uuid references auth.users(id)
+);
+alter table public.zouchat_ai_proposals enable row level security;
+drop policy if exists "Admins can read AI proposals" on public.zouchat_ai_proposals;
+create policy "Admins can read AI proposals" on public.zouchat_ai_proposals
+for select to authenticated using ((select public.is_zouchat_admin()));
+drop policy if exists "Admins can create AI proposals" on public.zouchat_ai_proposals;
+create policy "Admins can create AI proposals" on public.zouchat_ai_proposals
+for insert to authenticated with check ((select public.is_zouchat_admin()) and created_by = (select auth.uid()));
+drop policy if exists "Admins can review AI proposals" on public.zouchat_ai_proposals;
+create policy "Admins can review AI proposals" on public.zouchat_ai_proposals
+for update to authenticated using ((select public.is_zouchat_admin())) with check ((select public.is_zouchat_admin()));
+grant select, insert on public.zouchat_guardian_events to authenticated;
+grant select, insert, update on public.zouchat_ai_proposals to authenticated;
