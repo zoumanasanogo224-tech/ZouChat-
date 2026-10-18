@@ -38,6 +38,10 @@ jobs:
         working-directory: android
         run: gradle --no-daemon assembleDebug
 
+      - name: Read app version
+        id: app_version
+        run: echo "version=$(sed -n "s/.*versionName '\([^']*\)'.*/\1/p" android/app/build.gradle)" >> "$GITHUB_OUTPUT"
+
       - name: Publish APK as workflow artifact
         uses: actions/upload-artifact@v4
         with:
@@ -49,8 +53,8 @@ jobs:
       - name: Publish downloadable GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: android-v1.0.${{ github.run_number }}
-          name: ZouChat Android v1.0.${{ github.run_number }}
+          tag_name: android-v${{ steps.app_version.outputs.version }}
+          name: ZouChat Android v${{ steps.app_version.outputs.version }}
           body: |
             APK Android de ZouChat.
 
