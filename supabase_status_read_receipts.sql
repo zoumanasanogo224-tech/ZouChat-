@@ -18,6 +18,7 @@ create policy "Users can publish own statuses" on public.zouchat_statuses
 drop policy if exists "Users can delete own statuses" on public.zouchat_statuses;
 create policy "Users can delete own statuses" on public.zouchat_statuses
  for delete to authenticated using (user_id = auth.uid());
+grant select, insert, delete on public.zouchat_statuses to authenticated;
 
 create table if not exists public.message_read_receipts (
   message_id uuid not null references public.messages(id) on delete cascade,
