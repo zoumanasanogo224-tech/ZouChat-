@@ -41,6 +41,8 @@ public class MainActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
+        // Always fetch the latest hosted ZouChat web app when the APK starts.
+        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
@@ -99,11 +101,9 @@ public class MainActivity extends Activity {
             }
         });
 
-        if (savedInstanceState != null) {
-            if (webView.restoreState(savedInstanceState) == null) webView.loadUrl(APP_URL);
-        } else {
-            webView.loadUrl(APP_URL);
-        }
+        // Do not restore a potentially stale WebView page; keep authentication in cookies/storage,
+        // but request a fresh document each time the app is launched.
+        webView.loadUrl(APP_URL + "?app_refresh=" + System.currentTimeMillis());
     }
 
     private boolean isTrustedAppUrl(Uri uri) {
