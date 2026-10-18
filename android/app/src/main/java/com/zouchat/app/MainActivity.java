@@ -2,6 +2,7 @@ package com.zouchat.app;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -17,6 +18,10 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -85,6 +90,7 @@ public class MainActivity extends Activity {
             }
         });
         webView.loadUrl(APP_URL + "?app_refresh=" + System.currentTimeMillis());
+        checkForAppUpdate();
     }
 
     private boolean isTrustedAppUrl(Uri uri) {
@@ -138,6 +144,80 @@ public class MainActivity extends Activity {
             filePathCallback.onReceiveValue(results);
             filePathCallback = null;
         }
+    }
+
+
+    // Vérifie les nouvelles versions Android publiées dans les Releases GitHub.
+    // Android exige toujours une confirmation de l'utilisateur pour installer un APK.
+    private void checkForAppUpdate() {
+        new Thread(() -> {
+            HttpURLConnection connection = null;
+            try {
+                URL url = new URL("https://api.github.com/repos/zoumanasanogo224-tech/ZouChat-/releases/latest");
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(7000);
+                connection.setReadTimeout(7000);
+                connection.setRequestProperty("Accept", "application/vnd.github+json");
+                connection.setRequestProperty("User-Agent", "ZouChat-Android");
+                if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) return;
+                java.io.InputStream stream = connection.getInputStream();
+                java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+                byte[] chunk = new byte[4096];
+                int read;
+                while ((read = stream.read(chunk)) != -1) buffer.write(chunk, 0, read);
+                stream.close();
+                JSONObject release = new JSONObject(buffer.toString("UTF-8"));
+                String latestTag = release.optString("tag_name", "");
+                String latestVersion = latestTag.replaceFirst("^android-v", "");
+                String installedVersion = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+                String apkUrl = "";
+                JSONArray assets = release.optJSONArray("assets");
+                if (assets != null) {
+                    for (int i = 0; i < assets.length(); i++) {
+                        JSONObject asset = assets.optJSONObject(i);
+                        if (asset != null && asset.optString("name", "").endsWith(".apk")) {
+                            apkUrl = asset.optString("browser_download_url", "");
+                            if (!apkUrl.isEmpty()) break;
+                        }
+                    }
+                }
+                if (!apkUrl.isEmpty() && compareVersions(latestVersion, installedVersion) > 0) {
+                    final String versionToInstall = latestVersion;
+                    final String downloadUrl = apkUrl;
+                    runOnUiThread(() -> new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Mise à jour ZouChat disponible")
+                        .setMessage("La version " + versionToInstall + " est disponible. Télécharge-la pour profiter des améliorations.")
+                        .setPositiveButton("Télécharger", (dialog, which) -> {
+                            try {
+                                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)));
+                            } catch (ActivityNotFoundException e) {
+                                Toast.makeText(MainActivity.this, "Impossible d’ouvrir le téléchargement.", Toast.LENGTH_LONG).show();
+                            }
+                        })
+                        .setNegativeButton("Plus tard", null)
+                        .show());
+                }
+            } catch (Exception ignored) {
+                // La messagerie reste utilisable même si la vérification échoue.
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        }).start();
+    }
+
+    private int compareVersions(String first, String second) {
+        try {
+            String[] a = first.split("\\.");
+            String[] b = (second == null ? "0" : second).split("\\.");
+            int length = Math.max(a.length, b.length);
+            for (int i = 0; i < length; i++) {
+                int av = i < a.length ? Integer.parseInt(a[i].replaceAll("[^0-9].*$", "")) : 0;
+                int bv = i < b.length ? Integer.parseInt(b[i].replaceAll("[^0-9].*$", "")) : 0;
+                if (av != bv) return Integer.compare(av, bv);
+            }
+        } catch (Exception ignored) { return first.compareTo(second == null ? "" : second); }
+        return 0;
     }
 
     @Override public void onBackPressed() {
