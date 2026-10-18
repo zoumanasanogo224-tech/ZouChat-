@@ -41,7 +41,7 @@ jobs:
       - name: Read app version
         id: app_version
         run: |
-          VERSION=$(grep "versionName" android/app/build.gradle | cut -d "\x27" -f2)
+          VERSION=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' android/app/build.gradle | head -n 1)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Publish APK as workflow artifact
