@@ -18,11 +18,18 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class MainActivity extends Activity {
     private static final String APP_URL = "https://zoumanasanogo224-tech.github.io/ZouChat-/";
+    private static final String APP_HOST = "zoumanasanogo224-tech.github.io";
     private static final int FILE_CHOOSER_REQUEST = 4102;
+    private static final int MEDIA_PERMISSION_REQUEST = 4103;
+
     private WebView webView;
     private ValueCallback<Uri[]> filePathCallback;
+    private PermissionRequest pendingWebPermissionRequest;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,9 +51,8 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
-                String host = uri.getHost();
-                if ("zoumanasanogo224-tech.github.io".equalsIgnoreCase(host)
-                        && "https".equalsIgnoreCase(uri.getScheme())) return false;
+                if (isTrustedAppUrl(uri)) return false;
+
                 try {
                     startActivity(new Intent(Intent.ACTION_VIEW, uri));
                 } catch (ActivityNotFoundException ignored) {
@@ -75,6 +81,7 @@ public class MainActivity extends Activity {
                     startActivityForResult(params.createIntent(), FILE_CHOOSER_REQUEST);
                 } catch (ActivityNotFoundException e) {
                     filePathCallback = null;
+                    callback.onReceiveValue(null);
                     Toast.makeText(MainActivity.this, "Aucune application de fichiers disponible.", Toast.LENGTH_SHORT).show();
                     return false;
                 }
@@ -83,27 +90,87 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPermissionRequest(PermissionRequest request) {
-                runOnUiThread(() -> {
-                    boolean allowed = true;
-                    for (String resource : request.getResources()) {
-                        if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)
-                                && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) allowed = false;
-                        if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)
-                                && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) allowed = false;
-                    }
-                    if (allowed) request.grant(request.getResources());
-                    else {
-                        Toast.makeText(MainActivity.this,
-                                "Autorise le micro ou la caméra dans les paramètres Android si nécessaire.",
-                                Toast.LENGTH_LONG).show();
-                        request.deny();
-                    }
-                });
+                runOnUiThread(() -> handleWebPermissionRequest(request));
+            }
+
+            @Override
+            public void onPermissionRequestCanceled(PermissionRequest request) {
+                if (pendingWebPermissionRequest == request) pendingWebPermissionRequest = null;
             }
         });
 
-        if (savedInstanceState != null) webView.restoreState(savedInstanceState);
-        else webView.loadUrl(APP_URL);
+        if (savedInstanceState != null) {
+            if (webView.restoreState(savedInstanceState) == null) webView.loadUrl(APP_URL);
+        } else {
+            webView.loadUrl(APP_URL);
+        }
+    }
+
+    private boolean isTrustedAppUrl(Uri uri) {
+        return uri != null
+                && "https".equalsIgnoreCase(uri.getScheme())
+                && APP_HOST.equalsIgnoreCase(uri.getHost());
+    }
+
+    private void handleWebPermissionRequest(PermissionRequest request) {
+        // Only allow microphone/camera requests from ZouChat's own HTTPS origin.
+        if (request.getOrigin() == null || !isTrustedAppUrl(request.getOrigin())) {
+            request.deny();
+            return;
+        }
+
+        List<String> androidPermissions = new ArrayList<>();
+        for (String resource : request.getResources()) {
+            if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)) {
+                androidPermissions.add(Manifest.permission.RECORD_AUDIO);
+            } else if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)) {
+                androidPermissions.add(Manifest.permission.CAMERA);
+            } else {
+                request.deny();
+                return;
+            }
+        }
+
+        List<String> missing = new ArrayList<>();
+        for (String permission : androidPermissions) {
+            if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED && !missing.contains(permission)) {
+                missing.add(permission);
+            }
+        }
+
+        if (missing.isEmpty()) {
+            request.grant(request.getResources());
+            return;
+        }
+
+        if (pendingWebPermissionRequest != null) pendingWebPermissionRequest.deny();
+        pendingWebPermissionRequest = request;
+        requestPermissions(missing.toArray(new String[0]), MEDIA_PERMISSION_REQUEST);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != MEDIA_PERMISSION_REQUEST) return;
+
+        PermissionRequest request = pendingWebPermissionRequest;
+        pendingWebPermissionRequest = null;
+        if (request == null) return;
+
+        boolean allGranted = true;
+        for (int result : grantResults) {
+            if (result != PackageManager.PERMISSION_GRANTED) {
+                allGranted = false;
+                break;
+            }
+        }
+
+        if (allGranted) {
+            request.grant(request.getResources());
+        } else {
+            request.deny();
+            Toast.makeText(this, "Autorise le micro ou la caméra pour utiliser cette fonction.", Toast.LENGTH_LONG).show();
+        }
     }
 
     @Override
@@ -131,6 +198,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         if (filePathCallback != null) filePathCallback.onReceiveValue(null);
+        if (pendingWebPermissionRequest != null) {
+            pendingWebPermissionRequest.deny();
+            pendingWebPermissionRequest = null;
+        }
         if (webView != null) webView.destroy();
         super.onDestroy();
     }
