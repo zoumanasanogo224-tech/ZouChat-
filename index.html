@@ -97,14 +97,17 @@ async function guardianRequest(action,extra={}){
   if(!supabase||!user)throw new Error('Connecte-toi d’abord.');
   const {data,error}=await supabase.auth.getSession();
   if(error||!data.session?.access_token)throw new Error('Session expirée. Reconnecte-toi puis réessaie.');
-  const response=await fetch(SUPABASE_URL+'/functions/v1/zouchat-ai-guardian',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+data.session.access_token,'apikey':SUPABASE_PUBLISHABLE_KEY},
-    body:JSON.stringify({action,...extra})
-  });
-  const payload=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(payload.message||payload.error||'Erreur du Gardien IA ('+response.status+').');
-  return payload;
+  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
+  try{
+    const response=await fetch(SUPABASE_URL+'/functions/v1/zouchat-ai-guardian',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+data.session.access_token,'apikey':SUPABASE_PUBLISHABLE_KEY},
+      body:JSON.stringify({action,...extra}),signal:controller.signal
+    });
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(payload.message||payload.error||'Erreur du Gardien IA ('+response.status+').');
+    return payload;
+  }catch(e){if(e.name==='AbortError')throw new Error('Le Gardien IA ne répond pas après 15 secondes. Vérifie la fonction Supabase et ses secrets, puis réessaie.');throw e;}finally{clearTimeout(timer);}
 }
 function guardianMessage(message,isError=false){const el=$('guardianStatus');el.textContent=message;el.classList.remove('hidden','err');if(isError)el.classList.add('err');}
 function guardianRenderProposal(proposal){
@@ -142,7 +145,7 @@ async function guardianLoadLatest(){
   try{const result=await guardianRequest('get_latest_proposal');guardianRenderProposal(result.proposal);if(!result.proposal)guardianMessage('Aucune proposition IA pour le moment.');}
   catch(e){guardianMessage(e.message,true)}
 }
-function openGuardianPanel(){const panel=$('guardianPanel');$('authScreen').classList.add('hidden');$('appScreen').classList.add('hidden');$('moderationPanel').classList.add('hidden');panel.classList.remove('hidden');panel.style.display='block';panel.setAttribute('aria-hidden','false');$('guardianStatus').textContent='Gardien IA ouvert. Vérification de la connexion…';$('guardianProposal').classList.remove('hidden');$('guardianProposal').textContent='Chargement des informations du Gardien IA…';window.scrollTo(0,0);void guardianCheck();void guardianLoadLatest();}
+function openGuardianPanel(){const panel=$('guardianPanel');$('authScreen').classList.add('hidden');$('appScreen').classList.add('hidden');$('moderationPanel').classList.add('hidden');panel.classList.remove('hidden');panel.style.display='block';panel.setAttribute('aria-hidden','false');$('guardianStatus').textContent='Gardien IA ouvert. Appuie sur « Vérifier » ou « Analyser les erreurs ».';$('guardianProposal').classList.remove('hidden');$('guardianProposal').textContent='Les résultats apparaîtront ici.';window.scrollTo(0,0);void guardianCheck();}
 $('guardianOpen').addEventListener('click',openGuardianPanel);
 $('guardianClose').addEventListener('click',()=>{const panel=$('guardianPanel');panel.classList.add('hidden');panel.style.display='';panel.setAttribute('aria-hidden','true');$('appScreen').classList.remove('hidden');$('moderationPanel').classList.add('hidden');window.scrollTo(0,0);});
 $('guardianCheck').addEventListener('click',()=>void guardianCheck());
