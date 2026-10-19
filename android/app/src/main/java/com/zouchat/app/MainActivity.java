@@ -2,6 +2,7 @@ package com.zouchat.app;
 
 import android.Manifest;
 import android.app.Activity;
+import android.media.AudioManager;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
@@ -33,9 +34,13 @@ public class MainActivity extends Activity {
     private WebView webView;
     private ValueCallback<Uri[]> filePathCallback;
     private PermissionRequest pendingWebPermissionRequest;
+    private AudioManager audioManager;
+    private int previousAudioMode = AudioManager.MODE_NORMAL;
+    private boolean audioModeChanged = false;
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         webView = new WebView(this);
         setContentView(webView);
         WebSettings settings = webView.getSettings();
@@ -109,10 +114,28 @@ public class MainActivity extends Activity {
         for (String permission : androidPermissions) {
             if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED && !missing.contains(permission)) missing.add(permission);
         }
-        if (missing.isEmpty()) { request.grant(request.getResources()); return; }
+        if (missing.isEmpty()) { prepareCallAudio(); request.grant(request.getResources()); return; }
         if (pendingWebPermissionRequest != null) pendingWebPermissionRequest.deny();
         pendingWebPermissionRequest = request;
         requestPermissions(missing.toArray(new String[0]), MEDIA_PERMISSION_REQUEST);
+    }
+
+    private void prepareCallAudio() {
+        // WebRTC sur Android WebView fonctionne mieux en mode communication.
+        if (audioManager == null) return;
+        try {
+            if (!audioModeChanged) previousAudioMode = audioManager.getMode();
+            audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+            audioModeChanged = true;
+        } catch (SecurityException ignored) {
+            // Ne bloque pas les appels si le système refuse le changement de mode audio.
+        }
+    }
+
+    private void restoreAudioMode() {
+        if (audioManager == null || !audioModeChanged) return;
+        try { audioManager.setMode(previousAudioMode); } catch (SecurityException ignored) { }
+        audioModeChanged = false;
     }
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
@@ -123,7 +146,7 @@ public class MainActivity extends Activity {
         if (request == null) return;
         boolean allGranted = true;
         for (int result : grantResults) if (result != PackageManager.PERMISSION_GRANTED) { allGranted = false; break; }
-        if (allGranted) request.grant(request.getResources());
+        if (allGranted) { prepareCallAudio(); request.grant(request.getResources()); }
         else {
             request.deny();
             Toast.makeText(this, "Autorise le micro ou la caméra pour utiliser cette fonction.", Toast.LENGTH_LONG).show();
@@ -230,6 +253,7 @@ public class MainActivity extends Activity {
     @Override protected void onDestroy() {
         if (filePathCallback != null) filePathCallback.onReceiveValue(null);
         if (pendingWebPermissionRequest != null) { pendingWebPermissionRequest.deny(); pendingWebPermissionRequest = null; }
+        restoreAudioMode();
         if (webView != null) webView.destroy();
         super.onDestroy();
     }
