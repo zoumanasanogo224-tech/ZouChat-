@@ -24,7 +24,7 @@ body[data-theme="dark"]{--bg:#0b141a;--card:#111b21;--text:#e9edef;--muted:#8696
   <div class="panel">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
       <h2 style="margin:0">🤖 ZouChat Evolution — Gardien IA</h2>
-      <button id="guardianClose" type="button" class="secondary">Fermer</button>
+      <button id="guardianClose" type="button" class="secondary" aria-label="Retour à ZouChat">← Retour à ZouChat</button>
     </div>
     <p class="hint">L’IA analyse les erreurs techniques et prépare des propositions. Aucun changement n’est publié automatiquement : vérifie le patch et les tests avant de l’approuver.</p>
     <div id="guardianStatus" class="status">Vérification de la configuration…</div>
@@ -142,8 +142,8 @@ async function guardianLoadLatest(){
   try{const result=await guardianRequest('get_latest_proposal');guardianRenderProposal(result.proposal);if(!result.proposal)guardianMessage('Aucune proposition IA pour le moment.');}
   catch(e){guardianMessage(e.message,true)}
 }
-$('guardianOpen').addEventListener('click',()=>{$('appScreen').classList.add('hidden');$('moderationPanel').classList.add('hidden');$('guardianPanel').classList.remove('hidden');void guardianCheck();void guardianLoadLatest()});
-$('guardianClose').addEventListener('click',()=>{$('guardianPanel').classList.add('hidden');$('appScreen').classList.remove('hidden')});
+$('guardianOpen').addEventListener('click',()=>{ $('authScreen').classList.add('hidden'); $('appScreen').classList.add('hidden'); $('moderationPanel').classList.add('hidden'); $('guardianPanel').classList.remove('hidden'); window.scrollTo?.(0,0); guardianMessage('Connexion au Gardien IA…'); void guardianCheck(); void guardianLoadLatest(); });
+$('guardianClose').addEventListener('click',()=>{ $('guardianPanel').classList.add('hidden'); $('appScreen').classList.remove('hidden'); $('moderationPanel').classList.add('hidden'); window.scrollTo?.(0,0); });
 $('guardianCheck').addEventListener('click',()=>void guardianCheck());
 $('guardianAnalyze').addEventListener('click',()=>void guardianAnalyze());
 $('guardianLatest').addEventListener('click',()=>void guardianLoadLatest());
