@@ -8,7 +8,7 @@ const cors = {
   "Content-Type": "application/json",
 };
 const REPO = "zoumanasanogo224-tech/ZouChat-";
-const WORK_BRANCH = "fix/zouchat-v10-stability";
+const WORK_BRANCH = "main";
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: cors });
 }
