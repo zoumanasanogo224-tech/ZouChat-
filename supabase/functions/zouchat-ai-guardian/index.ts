@@ -90,6 +90,42 @@ Deno.serve(async (req: Request) => {
     return json(200, { ok: true, proposal: data ?? null });
   }
 
+  if (action === "chat") {
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!apiKey) return json(424, {
+      error: "ai_provider_not_configured",
+      message: "Le chat IA n'est pas configuré. Ajoute OPENAI_API_KEY dans les secrets Supabase.",
+    });
+    const message = String(body.message ?? "").trim().slice(0, 4000);
+    if (!message) return json(400, { error: "message_required" });
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        temperature: 0.3,
+        max_tokens: 800,
+        messages: [
+          {
+            role: "system",
+            content: "Tu es ZouChat Evolution, un assistant de maintenance du projet ZouChat. Réponds en français, de façon claire et honnête. Tu peux expliquer le code et aider à diagnostiquer des bugs, mais tu ne peux pas prétendre avoir modifié ou testé le dépôt si cela n'a pas été fait. Tu ne publies aucun changement depuis cette action. Pour modifier le code, l'administrateur doit lancer Analyse puis examiner et approuver une proposition séparée. Ne demande jamais de secrets, mots de passe ou clés API.",
+          },
+          { role: "user", content: message },
+        ],
+      }),
+    });
+    if (!response.ok) return json(502, {
+      error: "ai_provider_failed",
+      message: "Le fournisseur IA n'a pas répondu. Vérifie OPENAI_API_KEY, les quotas et la facturation.",
+    });
+    const result = await response.json();
+    const reply = result.choices?.[0]?.message?.content;
+    if (typeof reply !== "string" || !reply.trim()) {
+      return json(502, { error: "empty_ai_response", message: "Le Gardien n'a pas reçu de réponse exploitable. Réessaie." });
+    }
+    return json(200, { ok: true, reply: reply.trim().slice(0, 6000) });
+  }
+
   if (action === "analyze") {
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) return json(424, {
