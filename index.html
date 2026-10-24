@@ -28,6 +28,18 @@ body[data-theme="dark"]{--bg:#0b141a;--card:#111b21;--text:#e9edef;--muted:#8696
       <button id="guardianClose" type="button" class="secondary" aria-label="Retour à ZouChat">← Retour à ZouChat</button>
     </div>
     <p class="hint">Contact privé réservé à l’administrateur Pdg. Écris une commande ci-dessous. L’IA peut analyser le code et préparer une proposition ; rien n’est publié sans ton approbation.</p>
+    <div class="panel" style="background:var(--bg);margin:12px 0;padding:12px">
+      <b>Objectif permanent : faire évoluer ZouChat vers les fonctions essentielles de WhatsApp</b>
+      <ol class="hint" style="padding-left:22px;margin-bottom:8px">
+        <li>Messages privés fiables, temps réel et historique conservé</li>
+        <li>Envoi et réception de photos, vidéos et notes vocales</li>
+        <li>Confirmations envoyé, reçu et lu</li>
+        <li>Recherche d’utilisateurs et discussions récentes</li>
+        <li>Groupes, statuts de 24 heures et confidentialité</li>
+        <li>Appels audio et vidéo entre appareils</li>
+      </ol>
+      <p class="tiny" style="margin-bottom:0">Le diagnostic compare maintenant des marqueurs du vrai fichier index.html sur GitHub et les événements récents. Un contrôle statique n’est pas un test réel : les correctifs doivent rester précis, vérifiables et approuvés.</p>
+    </div>
     <div id="guardianMessages" class="messages" role="log" aria-live="polite" style="min-height:180px;max-height:38dvh;border-radius:12px;margin:10px 0"></div>
     <form id="guardianComposer" class="composer" style="border:1px solid var(--line);border-radius:12px;margin-bottom:10px"><input id="guardianInput" maxlength="2000" placeholder="Écris à ZouChat Evolution…" autocomplete="off" aria-label="Message à ZouChat Evolution"><button id="guardianSend" type="submit">Envoyer</button></form>
     <div id="guardianStatus" class="status">Contact IA prêt.</div>
