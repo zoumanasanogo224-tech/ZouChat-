@@ -60,4 +60,5 @@ end;
 $$;
 
 revoke all on function public.consume_view_once_media(uuid) from public;
+revoke all on function public.consume_view_once_media(uuid) from anon;
 grant execute on function public.consume_view_once_media(uuid) to authenticated;
