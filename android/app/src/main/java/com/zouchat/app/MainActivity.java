@@ -11,6 +11,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Build;
 import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -22,6 +23,7 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import com.google.firebase.messaging.FirebaseMessaging;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.util.ArrayList;
@@ -46,7 +48,7 @@ public class MainActivity extends Activity {
         }
         audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         webView = new WebView(this);
-        setContentView(webView);
+        setContentView(webView);\n        webView.addJavascriptInterface(new ZouChatAndroidBridge(), "ZouChatAndroid");
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
@@ -58,6 +60,10 @@ public class MainActivity extends Activity {
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false);
         webView.setWebViewClient(new WebViewClient() {
+            @Override public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                if (isTrustedAppUrl(Uri.parse(url))) requestFcmToken();
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 if (isTrustedAppUrl(uri)) return false;
@@ -245,6 +251,36 @@ public class MainActivity extends Activity {
             }
         } catch (Exception ignored) { return first.compareTo(second == null ? "" : second); }
         return 0;
+    }
+
+    private void requestFcmToken() {
+        FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
+            if (!task.isSuccessful() || task.getResult() == null || webView == null) return;
+            String token = task.getResult();
+            runOnUiThread(() -> {
+                if (webView == null) return;
+                String script = "window.ZouChatNativeOnToken && window.ZouChatNativeOnToken(" + JSONObject.quote(token) + ")";
+                webView.evaluateJavascript(script, null);
+            });
+        });
+    }
+
+    private final class ZouChatAndroidBridge {
+        @JavascriptInterface
+        public void requestFcmToken() {
+            MainActivity.this.requestFcmToken();
+        }
+
+        @JavascriptInterface
+        public void enableNotifications() {
+            runOnUiThread(() -> {
+                if (Build.VERSION.SDK_INT >= 33 &&
+                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 4104);
+                }
+                MainActivity.this.requestFcmToken();
+            });
+        }
     }
 
     @Override public void onBackPressed() {
