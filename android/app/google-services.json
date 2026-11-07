@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "432611493629",
+    "project_id": "zouchat-a0f5a",
+    "storage_bucket": "zouchat-a0f5a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:432611493629:android:0af8e4c4e10f3338c9a094",
+        "android_client_info": {
+          "package_name": "com.zouchat.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDHwpDzR75TXmKdP0mtyCuC5se_k1S87pE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
