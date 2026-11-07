@@ -48,7 +48,8 @@ public class MainActivity extends Activity {
         }
         audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         webView = new WebView(this);
-        setContentView(webView);\n        webView.addJavascriptInterface(new ZouChatAndroidBridge(), "ZouChatAndroid");
+        setContentView(webView);
+        webView.addJavascriptInterface(new ZouChatAndroidBridge(), "ZouChatAndroid");
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
