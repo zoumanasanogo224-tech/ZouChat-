@@ -14,20 +14,7 @@ android {
         versionName '1.0.13'
     }
 
-    signingConfigs {
-        release {
-            storeFile file(System.getenv('ANDROID_KEYSTORE_PATH') ?: 'zouchat-release.jks')
-            storePassword System.getenv('ANDROID_STORE_PASSWORD')
-            keyAlias System.getenv('ANDROID_KEY_ALIAS')
-            keyPassword System.getenv('ANDROID_KEY_PASSWORD')
-        }
-    }
-
-    buildTypes {
-        debug {
-            signingConfig signingConfigs.release
-        }
-    }
+    // Android utilise automatiquement la clé debug standard pour assembleDebug.
 }
 
 dependencies {
