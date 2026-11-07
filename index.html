@@ -180,13 +180,13 @@ function renderPresenceLabels(){
   const c=conversationRows[i];if(!c||c.is_group)return;
   const other=(conversationMembersById[c.id]||[]).find(m=>m.user_id!==user.id);if(!other)return;
   const state=presenceById[other.user_id];const preview=b.querySelector('.conversation-preview');
-  if(state?.online){preview.textContent='🟢 En ligne';}
+  if(state?.online){preview.textContent='🟢 En ligne';}else if(state?.lastSeen){preview.textContent='Vu '+new Date(state.lastSeen).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
  });
  if(activeConversation){
   const c=conversationRows.find(x=>x.id===activeConversation);
   const other=(conversationMembersById[activeConversation]||[]).find(m=>m.user_id!==user.id);
   const state=other&&presenceById[other.user_id];
-  if(c&&!c.is_group&&state?.online)$('chatTitle').textContent=$('chatTitle').textContent.replace(/ · En ligne$/,'')+' · En ligne';
+  if(c&&!c.is_group&&state?.online)$('chatTitle').textContent=$('chatTitle').textContent.replace(/ · (En ligne|Vu .*)$/,'')+' · En ligne';else if(c&&!c.is_group&&state?.lastSeen)$('chatTitle').textContent=$('chatTitle').textContent.replace(/ · (En ligne|Vu .*)$/,'')+' · Vu '+new Date(state.lastSeen).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
  }
 }
 function startPresence(){
