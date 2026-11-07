@@ -166,12 +166,12 @@ async function refreshVisiblePresence(){
  const targets=all.length?all:ids;
  if(!targets.length){presenceById={};return}
  const [online,seen]=await Promise.all([
-  supabase.from('zouchat_presence').select('user_id,is_online').in('user_id',targets),
+  supabase.from('zouchat_presence').select('user_id,is_online,updated_at').in('user_id',targets),
   supabase.from('zouchat_last_seen').select('user_id,last_seen_at').in('user_id',targets)
  ]);
  if(online.error)throw online.error;
  presenceById={};
- for(const p of online.data||[])presenceById[p.user_id]={online:p.is_online};
+ for(const p of online.data||[])presenceById[p.user_id]={online:Boolean(p.is_online&&p.updated_at&&Date.now()-new Date(p.updated_at).getTime()<90000)};
  for(const p of seen.data||[]){presenceById[p.user_id]=presenceById[p.user_id]||{};presenceById[p.user_id].lastSeen=p.last_seen_at}
  renderPresenceLabels();
 }
