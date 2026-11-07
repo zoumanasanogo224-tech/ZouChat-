@@ -91,6 +91,8 @@ body[data-theme="dark"] .msg{box-shadow:none}
    <div class="panel"><div class="hint">Utilisateurs inscrits</div><strong id="statTotal" style="font-size:30px">—</strong></div>
    <div class="panel"><div class="hint">Actifs sur 7 jours</div><strong id="statActive" style="font-size:30px">—</strong></div>
    <div class="panel"><div class="hint">Nouveaux aujourd’hui</div><strong id="statToday" style="font-size:30px">—</strong></div>
+   <div class="panel"><div class="hint">Nouveaux sur 7 jours</div><strong id="statWeek" style="font-size:30px">—</strong></div>
+   <div class="panel"><div class="hint">Taux d’activité (7 jours)</div><strong id="statActivityRate" style="font-size:30px">—</strong></div>
   </div>
   <h3>Inscriptions des 7 derniers jours</h3>
   <div id="signupChart" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;align-items:end;min-height:150px"></div>
@@ -295,6 +297,11 @@ async function loadAdminDashboard(){
   $('statToday').textContent=Number(data.new_today||0).toLocaleString('fr-FR');
   const host=$('signupChart');host.replaceChildren();
   const days=Array.isArray(data.daily_signups)?data.daily_signups:[];
+  const weeklyNew=days.reduce((sum,item)=>sum+(Number(item.count)||0),0);
+  const totalUsers=Number(data.total_users)||0;
+  const activeUsers=Number(data.active_last_7_days)||0;
+  $('statWeek').textContent=weeklyNew.toLocaleString('fr-FR');
+  $('statActivityRate').textContent=(totalUsers?((activeUsers/totalUsers)*100).toLocaleString('fr-FR',{maximumFractionDigits:1}):'0')+' %';
   const max=Math.max(1,...days.map(x=>Number(x.count)||0));
   for(const item of days){
    const col=document.createElement('div');col.style.cssText='display:flex;flex-direction:column;align-items:center;justify-content:end;gap:6px;min-width:0;height:145px';
@@ -303,7 +310,7 @@ async function loadAdminDashboard(){
    const label=document.createElement('span');label.textContent=new Date(item.day+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'short'});label.style.cssText='font-size:11px;color:var(--muted)';
    col.append(n,bar,label);host.append(col);
   }
-  $('dashboardUpdated').textContent='Mis à jour : '+new Date(data.generated_at||Date.now()).toLocaleString('fr-FR');
+  $('dashboardUpdated').textContent='Rapport hebdomadaire · '+new Date(data.generated_at||Date.now()).toLocaleString('fr-FR')+' · Nouveaux inscrits calculés à partir des inscriptions des 7 derniers jours.';
   clearStatus('dashboardStatus');
  }catch(e){status('dashboardStatus',e.message||'Impossible de charger les statistiques.',true)}
  finally{btn.disabled=false}
