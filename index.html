@@ -179,6 +179,38 @@ body[data-theme="dark"] .msg{box-shadow:none}
  #composer .reply-preview span{font-size:13px;max-width:calc(100vw - 100px)}
  #composer{gap:7px}
 }
+
+/* Correctif urgent : restaurer le contenu de l'accueil sur petit écran */
+@media(max-width:680px){
+ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
+ .wrap{width:100%!important;max-width:100%!important;overflow-x:hidden!important}
+ .top{width:100%!important;box-sizing:border-box!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;overflow:hidden!important}
+ .top>div:first-child{min-width:0!important;flex:1 1 auto!important}
+ .top>div:last-child{min-width:0!important;flex:0 0 auto!important;gap:4px!important}
+ .top .brand{font-size:25px!important;white-space:nowrap!important}
+ .top .sub{display:none!important}
+ #themeToggle,#notificationEnable{display:inline-flex!important;width:38px!important;min-width:38px!important;height:38px!important;overflow:hidden!important;font-size:0!important;padding:5px!important;align-items:center!important;justify-content:center!important}
+ #themeToggle:after{content:"☾"!important;font-size:21px!important}
+ #notificationEnable:after{content:"♧"!important;font-size:21px!important}
+ #dashboardOpen,#guardianOpen,#logout{display:none!important}
+ #appScreen{display:block!important;width:100%!important;min-height:calc(100dvh - 65px)!important}
+ #appScreen.hidden{display:none!important}
+ #appScreen>.grid{display:flex!important;flex-direction:column!important;width:100%!important;min-height:calc(100dvh - 145px)!important}
+ #appScreen .sidebar{display:flex!important;visibility:visible!important;opacity:1!important;flex-direction:column!important;width:100%!important;min-width:0!important;box-sizing:border-box!important;padding:8px 12px 90px!important;border:0!important;background:#0b1013!important}
+ #appScreen .sidebar>*{visibility:visible}
+ #appScreen .chat{display:none!important}
+ #appScreen .zc-search-wrap{display:flex!important;width:auto!important;min-height:54px!important;flex:0 0 54px!important}
+ #appScreen .zc-filter-strip{display:flex!important;min-height:52px!important;flex:0 0 auto!important}
+ #appScreen #conversationList{display:flex!important;flex-direction:column!important;width:100%!important;min-height:80px!important;visibility:visible!important;opacity:1!important}
+ #appScreen #conversationList:empty{min-height:80px!important}
+ #appScreen #conversationList .conversation-row{display:flex!important;visibility:visible!important}
+ #appScreen .status-section{display:block!important}
+ #appScreen .status-section #statusForm{display:none!important}
+ #appScreen .status-section .statuses-list{display:flex!important}
+ body.chat-open #appScreen>.grid{display:block!important}
+ body.chat-open #appScreen .sidebar{display:none!important}
+ body.chat-open #appScreen .chat{display:flex!important}
+}
 </style></head><body><div class="wrap"><header class="top"><div><div class="brand">💬 ZouChat <span style="font-size:12px">V10</span></div><div class="sub">Discute avec tes amis, partout</div></div><div style="display:flex;gap:8px;align-items:center"><button id="themeToggle" type="button" class="secondary" aria-label="Changer le thème" title="Changer le thème" style="padding:9px 11px">☀️/🌙</button><button id="notificationEnable" type="button" class="secondary" style="padding:9px 11px" title="Activer les notifications">🔔 Notifications</button><button id="dashboardOpen" type="button" class="secondary hidden" style="padding:9px 11px">📊 Statistiques</button><button id="guardianOpen" type="button" class="secondary hidden" style="padding:9px 11px">🤖 Gardien IA</button><button id="logout" class="hidden secondary">Déconnexion</button></div></header>
 <section id="authScreen" class="screen hidden"><div class="panel"><h2>Bienvenue sur ZouChat</h2><div class="tabs"><button id="showLogin" class="active">Connexion</button><button id="showSignup">Créer un compte</button></div><form id="authForm"><div id="usernameField" class="hidden"><label>Nom d’utilisateur (sans espaces)</label><input id="username" minlength="3" maxlength="24" pattern="[A-Za-z0-9_.-]{3,24}" placeholder="ex. zou_user" autocomplete="username"></div><label>Adresse e-mail</label><input id="email" type="email" required autocomplete="email" placeholder="toi@example.com"><label>Mot de passe (8 caractères minimum)</label><input id="password" type="password" required minlength="8" autocomplete="current-password" placeholder="••••••••"><button id="authSubmit" type="submit" style="width:100%">Se connecter</button></form><div id="authStatus" class="status hidden"></div><a id="banContact" class="hidden" href="mailto:pdgzou6@gmail.com?subject=Demande%20de%20r%C3%A9examen%20du%20bannissement%20ZouChat" style="display:block;margin-top:10px;padding:12px;text-align:center;border-radius:12px;background:#e7f1ef;color:#075e54;font-weight:700;text-decoration:none">✉️ Contacter l’administrateur par e-mail</a><button id="resendConfirmation" type="button" class="secondary hidden" style="width:100%;margin-top:8px">Renvoyer l’e-mail de confirmation</button><p class="hint">La confirmation de l’adresse e-mail dépend des réglages de ton projet Supabase. Utilise une adresse à laquelle tu as accès.</p></div></section>
 <section id="appScreen" class="hidden"><div class="grid"><aside class="sidebar"><div style="font-weight:750;margin:4px 0 6px">Envoyer un message</div><p class="hint">Le nom d’utilisateur exact est obligatoire pour démarrer une discussion. Recherche avec @nom_utilisateur.</p><div class="zc-search-wrap"><span aria-hidden="true">⌕</span><input id="userSearch" placeholder="Demander à ZouChat ou rechercher" autocomplete="off"></div>
