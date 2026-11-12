@@ -28,7 +28,7 @@ jobs:
           }
           with open("version.json", "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-            f.write("\\n")
+            f.write("\n")
           PY
       - name: Commit version manifest
         run: |
