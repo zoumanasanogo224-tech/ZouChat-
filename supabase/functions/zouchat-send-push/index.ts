@@ -82,10 +82,14 @@ Deno.serve(async (req: Request) => {
 
   const userClient = createClient(supabaseUrl, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: "Bearer " + accessToken } },
   });
   const { data: userData, error: userError } = await userClient.auth.getUser(accessToken);
   if (userError || !userData.user) return json({ error: "Invalid session" }, 401);
   const userId = userData.user.id;
+  const { data: isBanned, error: banCheckError } = await userClient.rpc("is_zouchat_banned");
+  if (banCheckError) return json({ error: "Could not verify account status" }, 503);
+  if (isBanned === true) return json({ error: "Account is suspended" }, 403);
 
   let body: { message_id?: string; conversation_id?: string };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
