@@ -100,8 +100,8 @@ begin
     if position('public.is_zouchat_banned()' in v_definition) = 0 then
       v_patched := regexp_replace(
         v_definition,
-        E'\\nbegin\\n',
-        E'\\nbegin\\n  if auth.uid() is not null and public.is_zouchat_banned() then\\n    raise exception ''Compte suspendu'';\\n  end if;\\n',
+        E'\nbegin\n',
+        E'\nbegin\n  if auth.uid() is not null and public.is_zouchat_banned() then\n    raise exception ''Compte suspendu'';\n  end if;\n',
         'i'
       );
       if v_patched = v_definition then
