@@ -583,4 +583,38 @@ document.querySelectorAll('.zc-filter').forEach(button=>button.addEventListener(
  });
 }));
 document.getElementById('zcAddFilter')?.addEventListener('click',()=>document.getElementById('createGroupBtn')?.click());
+
+<script>
+/* Vérification de version commune au site et à l'application Android WebView. */
+(function () {
+  let currentBuild = "";
+  let updatePromptShown = false;
+  async function checkZouChatUpdate() {
+    if (updatePromptShown || document.visibilityState === "hidden") return;
+    try {
+      const response = await fetch("./version.json?check=" + Date.now(), { cache: "no-store" });
+      if (!response.ok) return;
+      const release = await response.json();
+      const nextBuild = String(release.build || "");
+      if (!nextBuild) return;
+      if (!currentBuild) { currentBuild = nextBuild; return; }
+      if (nextBuild !== currentBuild) {
+        updatePromptShown = true;
+        if (window.confirm("Une nouvelle mise à jour de ZouChat est disponible. Recharger maintenant ?")) {
+          window.location.reload();
+        } else {
+          updatePromptShown = false;
+        }
+      }
+    } catch (_) {
+      // Une panne temporaire du contrôle de version ne bloque pas les discussions.
+    }
+  }
+  checkZouChatUpdate();
+  window.setInterval(checkZouChatUpdate, 60000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") checkZouChatUpdate();
+  });
+})();
+</script>
 </script></body></html>
