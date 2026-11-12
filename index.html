@@ -563,7 +563,6 @@ $('guardianCheck').addEventListener('click',()=>void guardianCheck());
 $('guardianAnalyze').addEventListener('click',()=>void guardianAnalyze());
 $('guardianLatest').addEventListener('click',()=>void guardianLoadLatest());
 const themeButton=$('themeToggle');function applyTheme(theme){document.body.dataset.theme=theme;themeButton.textContent=theme==='dark'?'☀️ Mode clair':'🌙 Mode sombre';themeButton.setAttribute('aria-label',theme==='dark'?'Passer au thème clair':'Passer au thème sombre');document.querySelector('meta[name="theme-color"]')?.setAttribute('content',theme==='dark'?'#202c33':'#075e54');try{localStorage.setItem('zouchat-theme',theme)}catch(e){}}let initialTheme='light';try{initialTheme=localStorage.getItem('zouchat-theme')||'light'}catch(e){}applyTheme(initialTheme);themeButton.addEventListener('click',()=>applyTheme(document.body.dataset.theme==='dark'?'light':'dark'));connect();
-})();
 
 // Navigation inférieure mobile : accès rapide aux zones déjà présentes.
 document.querySelectorAll('[data-zc-tab]').forEach(button=>button.addEventListener('click',()=>{
@@ -585,7 +584,6 @@ document.querySelectorAll('.zc-filter').forEach(button=>button.addEventListener(
 }));
 document.getElementById('zcAddFilter')?.addEventListener('click',()=>document.getElementById('createGroupBtn')?.click());
 
-<script>
 /* Vérification de version commune au site et à l'application Android WebView. */
 (function () {
   let currentBuild = "";
@@ -617,5 +615,5 @@ document.getElementById('zcAddFilter')?.addEventListener('click',()=>document.ge
     if (document.visibilityState === "visible") checkZouChatUpdate();
   });
 })();
-</script>
+})();
 </script></body></html>
