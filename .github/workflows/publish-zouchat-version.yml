@@ -1,0 +1,43 @@
+name: Publish ZouChat web version
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish-version:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Update public version manifest
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          data = {
+            "build": f"{os.environ['GITHUB_RUN_NUMBER']}-{os.environ['GITHUB_SHA'][:12]}",
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "message": "Une nouvelle version de ZouChat est disponible."
+          }
+          with open("version.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.write("\\n")
+          PY
+      - name: Commit version manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add version.json
+          if git diff --cached --quiet; then
+            echo "No version change to publish."
+            exit 0
+          fi
+          git commit -m "chore: publish ZouChat web version"
+          git push origin main
