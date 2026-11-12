@@ -21,6 +21,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
+import android.view.WindowManager;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -110,7 +111,7 @@ public class MainActivity extends Activity {
     }
 
     private boolean isTrustedAppUrl(Uri uri) {
-        return uri != null && "https".equalsIgnoreCase(uri.getScheme()) && APP_HOST.equalsIgnoreCase(uri.getHost());
+        return uri != null && "https".equalsIgnoreCase(uri.getScheme()) && APP_HOST.equalsIgnoreCase(uri.getHost()) && (uri.getPort() == -1 || uri.getPort() == 443);
     }
 
     private void handleWebPermissionRequest(PermissionRequest request) {
@@ -273,6 +274,15 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void setSecureWindow(boolean enabled) {
+            runOnUiThread(() -> {
+                if (webView == null || !isTrustedAppUrl(Uri.parse(webView.getUrl()))) return;
+                if (enabled) getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+                else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+            });
+        }
+
+        @JavascriptInterface
         public void enableNotifications() {
             runOnUiThread(() -> {
                 if (Build.VERSION.SDK_INT >= 33 &&
@@ -295,7 +305,8 @@ public class MainActivity extends Activity {
         if (filePathCallback != null) filePathCallback.onReceiveValue(null);
         if (pendingWebPermissionRequest != null) { pendingWebPermissionRequest.deny(); pendingWebPermissionRequest = null; }
         restoreAudioMode();
-        if (webView != null) webView.destroy();
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        if (webView != null) { webView.stopLoading(); webView.setWebChromeClient(null); webView.setWebViewClient(null); webView.destroy(); }
         super.onDestroy();
     }
 }
