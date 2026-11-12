@@ -22,7 +22,7 @@ Deno.serve(async (req: Request) => {
   if (origin && origin !== ALLOWED_ORIGIN) return json({ error: "Origin not allowed" }, 403);
 
   const authorization = req.headers.get("authorization") || "";
-  const accessToken = authorization.replace(/^Bearer\\s+/i, "");
+  const accessToken = authorization.replace(/^Bearer\s+/i, "");
   if (!accessToken) return json({ error: "Authentication required" }, 401);
 
   const url = Deno.env.get("SUPABASE_URL");
