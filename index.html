@@ -607,9 +607,10 @@ document.querySelectorAll('.zc-filter').forEach(button=>button.addEventListener(
 }));
 document.getElementById('zcAddFilter')?.addEventListener('click',()=>document.getElementById('createGroupBtn')?.click());
 
-/* Vérification de version commune au site et à l'application Android WebView. */
+/* Vérification de version commune au site et à l'application Android WebView.
+   Le dernier build accepté est mémorisé pour détecter une publication dès la réouverture. */
 (function () {
-  let currentBuild = "";
+  const BUILD_KEY = "zouchat_last_accepted_build";
   let updatePromptShown = false;
   async function checkZouChatUpdate() {
     if (updatePromptShown || document.visibilityState === "hidden") return;
@@ -617,16 +618,17 @@ document.getElementById('zcAddFilter')?.addEventListener('click',()=>document.ge
       const response = await fetch("./version.json?check=" + Date.now(), { cache: "no-store" });
       if (!response.ok) return;
       const release = await response.json();
-      const nextBuild = String(release.build || "");
-      if (!nextBuild) return;
-      if (!currentBuild) { currentBuild = nextBuild; return; }
-      if (nextBuild !== currentBuild) {
-        updatePromptShown = true;
-        if (window.confirm("Une nouvelle mise à jour de ZouChat est disponible. Recharger maintenant ?")) {
-          window.location.reload();
-        } else {
-          updatePromptShown = false;
-        }
+      const latestBuild = String(release.build || "");
+      if (!latestBuild) return;
+      let acceptedBuild = "";
+      try { acceptedBuild = localStorage.getItem(BUILD_KEY) || ""; } catch (_) {}
+      if (acceptedBuild === latestBuild) return;
+      updatePromptShown = true;
+      if (window.confirm("Une nouvelle mise à jour de ZouChat est disponible. Recharger maintenant ?")) {
+        try { localStorage.setItem(BUILD_KEY, latestBuild); } catch (_) {}
+        window.location.reload();
+      } else {
+        updatePromptShown = false;
       }
     } catch (_) {
       // Une panne temporaire du contrôle de version ne bloque pas les discussions.
@@ -634,9 +636,7 @@ document.getElementById('zcAddFilter')?.addEventListener('click',()=>document.ge
   }
   checkZouChatUpdate();
   window.setInterval(checkZouChatUpdate, 60000);
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") checkZouChatUpdate();
-  });
+  document.addEventListener("visibilitychange", checkZouChatUpdate);
 })();
 })();
 </script></body></html>
