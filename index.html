@@ -119,8 +119,8 @@ body[data-theme="dark"] .msg{box-shadow:none}
  .zc-filter.active{background:#123c2d!important;border-color:#245b43!important;color:#c9f5d9!important}
  .zc-filter.zc-add{font-size:23px!important;padding:5px 13px!important;min-width:48px}
  #searchResults{padding:0 18px}
- #createGroupBtn,#groupCreatePanel{display:none!important}
- .status-section{display:none!important}
+
+
  #appScreen .sidebar>div[style*="Mes discussions"]{display:none!important}
  #guardianContact{margin:0 18px 8px!important;width:calc(100% - 36px)!important}
  #conversationList{display:flex!important;flex-direction:column!important;gap:0!important;padding:0 8px!important;margin:0!important;background:#0b1013!important}
@@ -131,7 +131,7 @@ body[data-theme="dark"] .msg{box-shadow:none}
  #conversationList .conversation-preview{font-size:14px!important;color:#a4adb1!important}
  #conversationList .conversation-content{gap:6px!important;min-width:0}
  #conversationList .conversation-row.sel{background:#151e22!important}
- #myUsername,#myAvatar,.profile-tools,#presenceSettings,#reportPanel,#openModeration{display:none!important}
+
  .zc-bottom-nav{position:fixed!important;z-index:50!important;left:0!important;right:0!important;bottom:0!important;height:76px!important;display:flex!important;align-items:center!important;justify-content:space-around!important;padding:7px 5px calc(7px + env(safe-area-inset-bottom))!important;background:#0d1418!important;border-top:1px solid #20272b!important}
  .zc-bottom-nav button{display:flex!important;flex:1!important;min-width:0!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:5px!important;padding:5px 2px!important;background:transparent!important;color:#d1d7da!important;border-radius:20px!important}
  .zc-bottom-nav button span{font-size:25px!important;line-height:26px!important}
@@ -568,10 +568,32 @@ const themeButton=$('themeToggle');function applyTheme(theme){document.body.data
 document.querySelectorAll('[data-zc-tab]').forEach(button=>button.addEventListener('click',()=>{
  document.querySelectorAll('[data-zc-tab]').forEach(item=>item.classList.toggle('active',item===button));
  const target=button.dataset.zcTab;
- const destinations={chats:'conversationList',actus:'statusesList',groups:'createGroupBtn',calls:'voiceCall',profile:'myAvatar'};
- const node=$(destinations[target]);
- if(target==='calls'&&!activeConversation){status('chatStatus','Ouvre une discussion pour démarrer un appel.',true);return}
- if(node){node.scrollIntoView({behavior:'smooth',block:'center'});if(target==='groups')node.click()}
+ if(target==='chats'){
+  document.body.classList.remove('chat-open');
+  $('conversationList').scrollIntoView({behavior:'smooth',block:'start'});
+  return;
+ }
+ if(target==='actus'){
+  document.body.classList.remove('chat-open');
+  $('statusesList').scrollIntoView({behavior:'smooth',block:'center'});
+  return;
+ }
+ if(target==='groups'){
+  document.body.classList.remove('chat-open');
+  $('createGroupBtn').click();
+  $('groupCreatePanel').scrollIntoView({behavior:'smooth',block:'center'});
+  return;
+ }
+ if(target==='calls'){
+  if(!activeConversation){window.alert('Ouvre d’abord une discussion pour appeler cette personne.');return;}
+  document.body.classList.add('chat-open');
+  $('voiceCall').scrollIntoView({behavior:'smooth',block:'center'});
+  return;
+ }
+ if(target==='profile'){
+  document.body.classList.remove('chat-open');
+  $('presenceSettings').scrollIntoView({behavior:'smooth',block:'center'});
+ }
 }));
 
 document.querySelectorAll('.zc-filter').forEach(button=>button.addEventListener('click',()=>{
