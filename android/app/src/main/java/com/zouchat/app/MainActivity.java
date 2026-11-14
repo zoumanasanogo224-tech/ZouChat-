@@ -246,7 +246,7 @@ public class MainActivity extends Activity {
                 if (assets != null) {
                     for (int i = 0; i < assets.length(); i++) {
                         JSONObject asset = assets.optJSONObject(i);
-                        if (asset != null && asset.optString("name", "").endsWith(".apk")) {
+                        if (asset != null && asset.optString("name", "").toLowerCase().endsWith(".apk") && !asset.optString("name", "").toLowerCase().contains("debug")) {
                             apkUrl = asset.optString("browser_download_url", "");
                             if (!apkUrl.isEmpty()) break;
                         }
