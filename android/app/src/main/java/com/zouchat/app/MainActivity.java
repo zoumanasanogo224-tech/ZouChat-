@@ -51,6 +51,7 @@ public class MainActivity extends Activity {
     private boolean updateDialogVisible = false;
     private String lastPromptedVersion = "";
     private boolean downloadReceiverRegistered = false;
+    private boolean activityResumed = false;
     private final BroadcastReceiver updateDownloadReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             if (intent == null || !DownloadManager.ACTION_DOWNLOAD_COMPLETE.equals(intent.getAction())) return;
@@ -130,10 +131,16 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        activityResumed = true;
         // Reprend le contrôle d'un téléchargement même si Android a recréé l'activité.
         resumePendingUpdateInstall();
         // Vérifie aussi les mises à jour lorsque l'utilisateur revient dans ZouChat.
         checkForAppUpdate();
+    }
+
+    @Override protected void onPause() {
+        activityResumed = false;
+        super.onPause();
     }
 
     private boolean isTrustedAppUrl(Uri uri) {
@@ -322,6 +329,8 @@ public class MainActivity extends Activity {
     }
 
     private void handleUpdateDownloadCompleted(long id) {
+        // Ne lance jamais l'installateur depuis un écran en arrière-plan.
+        if (!activityResumed || isFinishing()) return;
         DownloadManager manager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
         if (manager == null) return;
         DownloadManager.Query query = new DownloadManager.Query().setFilterById(id);
