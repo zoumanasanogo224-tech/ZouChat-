@@ -283,6 +283,14 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void setCallAudioMode(boolean enabled) {
+            runOnUiThread(() -> {
+                if (webView == null || !isTrustedAppUrl(Uri.parse(webView.getUrl()))) return;
+                if (enabled) prepareCallAudio(); else restoreAudioMode();
+            });
+        }
+
+        @JavascriptInterface
         public void enableNotifications() {
             runOnUiThread(() -> {
                 if (Build.VERSION.SDK_INT >= 33 &&
