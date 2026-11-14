@@ -5,7 +5,13 @@ import android.app.Activity;
 import android.media.AudioManager;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.app.DownloadManager;
+import android.os.Environment;
+import android.database.Cursor;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -41,6 +47,19 @@ public class MainActivity extends Activity {
     private AudioManager audioManager;
     private int previousAudioMode = AudioManager.MODE_NORMAL;
     private boolean audioModeChanged = false;
+    private volatile boolean updateCheckInProgress = false;
+    private boolean updateDialogVisible = false;
+    private String lastPromptedVersion = "";
+    private boolean downloadReceiverRegistered = false;
+    private boolean activityResumed = false;
+    private final BroadcastReceiver updateDownloadReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            if (intent == null || !DownloadManager.ACTION_DOWNLOAD_COMPLETE.equals(intent.getAction())) return;
+            long completedId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L);
+            long expectedId = getPreferences(MODE_PRIVATE).getLong("zouchat_update_download_id", -2L);
+            if (completedId == expectedId) handleUpdateDownloadCompleted(completedId);
+        }
+    };
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -48,6 +67,7 @@ public class MainActivity extends Activity {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 4104);
         }
         audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        registerUpdateDownloadReceiver();
         webView = new WebView(this);
         setContentView(webView);
         webView.addJavascriptInterface(new ZouChatAndroidBridge(), "ZouChatAndroid");
@@ -107,7 +127,20 @@ public class MainActivity extends Activity {
             }
         });
         webView.loadUrl(APP_URL + "?app_refresh=" + System.currentTimeMillis());
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        activityResumed = true;
+        // Reprend le contrôle d'un téléchargement même si Android a recréé l'activité.
+        resumePendingUpdateInstall();
+        // Vérifie aussi les mises à jour lorsque l'utilisateur revient dans ZouChat.
         checkForAppUpdate();
+    }
+
+    @Override protected void onPause() {
+        activityResumed = false;
+        super.onPause();
     }
 
     private boolean isTrustedAppUrl(Uri uri) {
@@ -185,6 +218,8 @@ public class MainActivity extends Activity {
     // Vérifie les nouvelles versions Android publiées dans les Releases GitHub.
     // Android exige toujours une confirmation de l'utilisateur pour installer un APK.
     private void checkForAppUpdate() {
+        if (updateCheckInProgress || isFinishing()) return;
+        updateCheckInProgress = true;
         new Thread(() -> {
             HttpURLConnection connection = null;
             try {
@@ -211,7 +246,7 @@ public class MainActivity extends Activity {
                 if (assets != null) {
                     for (int i = 0; i < assets.length(); i++) {
                         JSONObject asset = assets.optJSONObject(i);
-                        if (asset != null && asset.optString("name", "").endsWith(".apk")) {
+                        if (asset != null && asset.optString("name", "").toLowerCase().endsWith(".apk") && !asset.optString("name", "").toLowerCase().contains("debug")) {
                             apkUrl = asset.optString("browser_download_url", "");
                             if (!apkUrl.isEmpty()) break;
                         }
@@ -220,25 +255,122 @@ public class MainActivity extends Activity {
                 if (!apkUrl.isEmpty() && compareVersions(latestVersion, installedVersion) > 0) {
                     final String versionToInstall = latestVersion;
                     final String downloadUrl = apkUrl;
-                    runOnUiThread(() -> new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("Mise à jour ZouChat disponible")
-                        .setMessage("La version " + versionToInstall + " est disponible. Télécharge-la pour profiter des améliorations.")
-                        .setPositiveButton("Télécharger", (dialog, which) -> {
-                            try {
-                                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)));
-                            } catch (ActivityNotFoundException e) {
-                                Toast.makeText(MainActivity.this, "Impossible d’ouvrir le téléchargement.", Toast.LENGTH_LONG).show();
-                            }
-                        })
-                        .setNegativeButton("Plus tard", null)
-                        .show());
+                    runOnUiThread(() -> {
+                        if (isFinishing() || (Build.VERSION.SDK_INT >= 17 && isDestroyed()) ||
+                            updateDialogVisible || versionToInstall.equals(lastPromptedVersion)) return;
+                        lastPromptedVersion = versionToInstall;
+                        updateDialogVisible = true;
+                        AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Nouvelle version de ZouChat")
+                            .setMessage("La version " + versionToInstall + " est disponible. Veux-tu mettre à jour l’application maintenant ?")
+                            .setPositiveButton("Télécharger et installer", (d, which) -> {
+                                enqueueUpdateDownload(downloadUrl, versionToInstall);
+                            })
+                            .setNegativeButton("Plus tard", null)
+                            .create();
+                        dialog.setOnDismissListener(d -> updateDialogVisible = false);
+                        dialog.show();
+                    });
                 }
             } catch (Exception ignored) {
                 // La messagerie reste utilisable même si la vérification échoue.
             } finally {
                 if (connection != null) connection.disconnect();
+                updateCheckInProgress = false;
             }
         }).start();
+    }
+
+
+    private void registerUpdateDownloadReceiver() {
+        IntentFilter filter = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(updateDownloadReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(updateDownloadReceiver, filter);
+        }
+        downloadReceiverRegistered = true;
+    }
+
+    private void enqueueUpdateDownload(String downloadUrl, String version) {
+        try {
+            Uri uri = Uri.parse(downloadUrl);
+            if (!"https".equalsIgnoreCase(uri.getScheme()) || !"github.com".equalsIgnoreCase(uri.getHost()) &&
+                !"objects.githubusercontent.com".equalsIgnoreCase(uri.getHost()) &&
+                !"release-assets.githubusercontent.com".equalsIgnoreCase(uri.getHost())) {
+                Toast.makeText(this, "Adresse de téléchargement non sécurisée.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            DownloadManager manager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+            if (manager == null) throw new IllegalStateException("DownloadManager indisponible");
+            DownloadManager.Request request = new DownloadManager.Request(uri);
+            request.setTitle("Mise à jour de ZouChat");
+            request.setDescription("Téléchargement de la version " + version);
+            request.setMimeType("application/vnd.android.package-archive");
+            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            request.setAllowedOverMetered(true);
+            request.setAllowedOverRoaming(false);
+            request.setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, "ZouChat-update-" + version + ".apk");
+            long id = manager.enqueue(request);
+            getPreferences(MODE_PRIVATE).edit()
+                .putLong("zouchat_update_download_id", id)
+                .putString("zouchat_update_download_version", version)
+                .putBoolean("zouchat_update_install_launched", false)
+                .apply();
+            Toast.makeText(this, "Téléchargement de la mise à jour commencé.", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Impossible de télécharger la mise à jour. Réessaie plus tard.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void resumePendingUpdateInstall() {
+        long id = getPreferences(MODE_PRIVATE).getLong("zouchat_update_download_id", -1L);
+        if (id >= 0) handleUpdateDownloadCompleted(id);
+    }
+
+    private void handleUpdateDownloadCompleted(long id) {
+        // Ne lance jamais l'installateur depuis un écran en arrière-plan.
+        if (!activityResumed || isFinishing()) return;
+        DownloadManager manager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+        if (manager == null) return;
+        DownloadManager.Query query = new DownloadManager.Query().setFilterById(id);
+        try (Cursor cursor = manager.query(query)) {
+            if (cursor == null || !cursor.moveToFirst()) return;
+            int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+            if (statusIndex < 0) return;
+            int status = cursor.getInt(statusIndex);
+            if (status == DownloadManager.STATUS_FAILED) {
+                int reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
+                String reason = reasonIndex >= 0 ? String.valueOf(cursor.getInt(reasonIndex)) : "inconnu";
+                Toast.makeText(this, "Échec du téléchargement de la mise à jour (" + reason + ").", Toast.LENGTH_LONG).show();
+                getPreferences(MODE_PRIVATE).edit().remove("zouchat_update_download_id").apply();
+                return;
+            }
+            if (status != DownloadManager.STATUS_SUCCESSFUL) return;
+            boolean alreadyLaunched = getPreferences(MODE_PRIVATE).getBoolean("zouchat_update_install_launched", false);
+            if (alreadyLaunched) return;
+            Uri apkUri = manager.getUriForDownloadedFile(id);
+            if (apkUri == null) return;
+            if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+                Toast.makeText(this, "Autorise ZouChat à installer cette mise à jour dans les paramètres Android.", Toast.LENGTH_LONG).show();
+                Intent settings = new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:" + getPackageName()));
+                try { startActivity(settings); } catch (ActivityNotFoundException ignored) { }
+                return;
+            }
+            try {
+                Intent install = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+                install.setDataAndType(apkUri, "application/vnd.android.package-archive");
+                install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                install.putExtra(Intent.EXTRA_RETURN_RESULT, true);
+                startActivity(install);
+                getPreferences(MODE_PRIVATE).edit().putBoolean("zouchat_update_install_launched", true).apply();
+            } catch (ActivityNotFoundException e) {
+                Toast.makeText(this, "Aucun installateur Android disponible.", Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception ignored) {
+            // Un contrôle ultérieur reprendra le traitement sans interrompre la messagerie.
+        }
     }
 
     private int compareVersions(String first, String second) {
@@ -283,6 +415,14 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void setCallAudioMode(boolean enabled) {
+            runOnUiThread(() -> {
+                if (webView == null || !isTrustedAppUrl(Uri.parse(webView.getUrl()))) return;
+                if (enabled) prepareCallAudio(); else restoreAudioMode();
+            });
+        }
+
+        @JavascriptInterface
         public void enableNotifications() {
             runOnUiThread(() -> {
                 if (Build.VERSION.SDK_INT >= 33 &&
@@ -306,6 +446,10 @@ public class MainActivity extends Activity {
         if (pendingWebPermissionRequest != null) { pendingWebPermissionRequest.deny(); pendingWebPermissionRequest = null; }
         restoreAudioMode();
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        if (downloadReceiverRegistered) {
+            try { unregisterReceiver(updateDownloadReceiver); } catch (IllegalArgumentException ignored) { }
+            downloadReceiverRegistered = false;
+        }
         if (webView != null) { webView.stopLoading(); webView.setWebChromeClient(null); webView.setWebViewClient(null); webView.destroy(); }
         super.onDestroy();
     }
