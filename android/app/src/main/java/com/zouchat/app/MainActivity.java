@@ -41,6 +41,9 @@ public class MainActivity extends Activity {
     private AudioManager audioManager;
     private int previousAudioMode = AudioManager.MODE_NORMAL;
     private boolean audioModeChanged = false;
+    private volatile boolean updateCheckInProgress = false;
+    private boolean updateDialogVisible = false;
+    private String lastPromptedVersion = "";
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -107,6 +110,11 @@ public class MainActivity extends Activity {
             }
         });
         webView.loadUrl(APP_URL + "?app_refresh=" + System.currentTimeMillis());
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        // Vérifie aussi les mises à jour lorsque l'utilisateur revient dans ZouChat.
         checkForAppUpdate();
     }
 
@@ -185,6 +193,8 @@ public class MainActivity extends Activity {
     // Vérifie les nouvelles versions Android publiées dans les Releases GitHub.
     // Android exige toujours une confirmation de l'utilisateur pour installer un APK.
     private void checkForAppUpdate() {
+        if (updateCheckInProgress || isFinishing()) return;
+        updateCheckInProgress = true;
         new Thread(() -> {
             HttpURLConnection connection = null;
             try {
@@ -220,23 +230,32 @@ public class MainActivity extends Activity {
                 if (!apkUrl.isEmpty() && compareVersions(latestVersion, installedVersion) > 0) {
                     final String versionToInstall = latestVersion;
                     final String downloadUrl = apkUrl;
-                    runOnUiThread(() -> new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("Mise à jour ZouChat disponible")
-                        .setMessage("La version " + versionToInstall + " est disponible. Télécharge-la pour profiter des améliorations.")
-                        .setPositiveButton("Télécharger", (dialog, which) -> {
-                            try {
-                                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)));
-                            } catch (ActivityNotFoundException e) {
-                                Toast.makeText(MainActivity.this, "Impossible d’ouvrir le téléchargement.", Toast.LENGTH_LONG).show();
-                            }
-                        })
-                        .setNegativeButton("Plus tard", null)
-                        .show());
+                    runOnUiThread(() -> {
+                        if (isFinishing() || (Build.VERSION.SDK_INT >= 17 && isDestroyed()) ||
+                            updateDialogVisible || versionToInstall.equals(lastPromptedVersion)) return;
+                        lastPromptedVersion = versionToInstall;
+                        updateDialogVisible = true;
+                        AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Nouvelle version de ZouChat")
+                            .setMessage("La version " + versionToInstall + " est disponible. Veux-tu mettre à jour l’application maintenant ?")
+                            .setPositiveButton("Mettre à jour", (d, which) -> {
+                                try {
+                                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)));
+                                } catch (ActivityNotFoundException e) {
+                                    Toast.makeText(MainActivity.this, "Impossible d’ouvrir le téléchargement.", Toast.LENGTH_LONG).show();
+                                }
+                            })
+                            .setNegativeButton("Plus tard", null)
+                            .create();
+                        dialog.setOnDismissListener(d -> updateDialogVisible = false);
+                        dialog.show();
+                    });
                 }
             } catch (Exception ignored) {
                 // La messagerie reste utilisable même si la vérification échoue.
             } finally {
                 if (connection != null) connection.disconnect();
+                updateCheckInProgress = false;
             }
         }).start();
     }
