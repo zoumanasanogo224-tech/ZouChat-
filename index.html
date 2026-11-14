@@ -634,7 +634,7 @@ document.getElementById('zcAddFilter')?.addEventListener('click',()=>document.ge
       }
       if (knownBuild === latestBuild) { reloadPending = false; return; }
       const draft = document.getElementById("messageInput");
-      if (reloadPending || (typeof callBusy !== "undefined" && callBusy) || (draft && draft.value.trim())) {
+      if ((typeof callBusy !== "undefined" && callBusy) || (draft && draft.value.trim())) {
         reloadPending = true;
         return;
       }
