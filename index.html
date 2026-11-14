@@ -464,10 +464,10 @@ async function sendPushForMessage(messageId,conversationId){
    body:{message_id:messageId,conversation_id:conversationId}
   });
   if(error)throw error;
-  if(data?.error)console.warn('Notification ZouChat non envoyée :',data.error);
-  else if(Number(data?.failed)>0)console.warn('Notification ZouChat partiellement envoyée :',Number(data.failed),'appareil(s) en échec.');
-  else if(Number(data?.sent)===0&&data?.reason)console.info('Notification ZouChat non envoyée :',data.reason);
- }catch(error){console.warn('Envoi de notification ZouChat impossible :',error?.message||error)}
+  if(data?.error){console.warn('Notification ZouChat non envoyée :',data.error);status('chatStatus','Message envoyé, mais la notification n’a pas pu être envoyée.',true)}
+  else if(Number(data?.failed)>0){console.warn('Notification ZouChat partiellement envoyée :',Number(data.failed),'appareil(s) en échec.');status('chatStatus','Message envoyé, mais certaines notifications n’ont pas été distribuées.',true)}
+  else if(Number(data?.sent)===0&&data?.reason&&data.reason!=='No recipients'){console.info('Notification ZouChat non envoyée :',data.reason);status('chatStatus','Message envoyé. Aucun appareil du destinataire n’a confirmé l’activation des notifications.',false)}
+ }catch(error){console.warn('Envoi de notification ZouChat impossible :',error?.message||error);status('chatStatus','Message envoyé, mais l’envoi de la notification n’a pas pu être confirmé.',true)}
 }
 function notificationMessagePreview(message){let content=String(message?.content||'');try{const parsed=JSON.parse(content);if(parsed?.type==='image')return '📷 Photo reçue';if(parsed?.type==='video')return '🎥 Vidéo reçue';if(parsed?.type==='audio')return '🎤 Message vocal reçu';if(parsed?.viewOnce)return '🔒 Média en vue unique reçu';}catch{}return content.length>120?content.slice(0,117)+'…':content||'Nouveau message';}
 async function enableMessageNotifications(){
